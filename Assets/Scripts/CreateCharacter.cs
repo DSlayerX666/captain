@@ -1,6 +1,23 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+
+public class Stat
+{
+    public Stat(int index)
+    {
+        this.index = index;
+    }
+
+    int index = 0;
+    public int amount { get; private set; } = 0;
+
+    public void AddPoint()
+    {
+        amount++;
+    }
+}
 
 public class CreateCharacter : MonoBehaviour
 {
@@ -17,6 +34,22 @@ public class CreateCharacter : MonoBehaviour
     int speed = 0;
     public TMP_Text speedText;
 
+    /*private Stat _health;
+    private Stat _sanity;
+    private Stat _attack;
+    private List<Stat> _stats = new List<Stat>();
+
+    private void Awake()
+    {
+        _health = new Stat(0);
+        _sanity = new Stat(1);
+        //...
+
+        _stats.Add(_health);
+        _stats.Add(_sanity);
+        //...
+    }*/
+
     int pointsLeft = 20;
     public TMP_Text pointsLeftText;
     public Button startGameButton;
@@ -31,6 +64,8 @@ public class CreateCharacter : MonoBehaviour
         {
             startGameButton.gameObject.SetActive(true);
         }
+
+        //_stats[index].AddPoint();
 
         if (index == 0)
         {
