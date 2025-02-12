@@ -1,9 +1,20 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
+using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using Random = UnityEngine.Random;
+
+public enum EBattleResult
+{
+    Win = 0,
+    Lose = 1,
+    Fled = 2
+}
 
 public class BattleManager : MonoBehaviour
 {
@@ -13,6 +24,10 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private int maxTestPlayerDamage = 25;
     [SerializeField] private int minTestEnemyDamage = 10;
     [SerializeField] private int maxTestEnemyDamage = 25;
+    [SerializeField] private float testFleeSuccessChance = 0.5f;
+
+    [Header("Settings")]
+    [SerializeField] private float _delayAfterEachAction = 1f;
 
     [Header("Dependencies")]
     [SerializeField] private Button _attackButton;
@@ -24,34 +39,34 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private TMP_Text _battleResultText;
     [SerializeField] private GameObject _actionsUI;
 
-
     int _currentPlayerHealth = 0;
     int _currentEnemyHealth = 0;
 
+    private List<Unit> _allies;
+    private List<Unit> _enemies;
+
+    public event Action<int, string, string> OnAttackAction;
 
     private void Awake()
     {
-        _attackButton.onClick.AddListener(() => StartCoroutine(PlayerAttack()));
+        _attackButton.onClick.AddListener(PlayerAttack);
         _runButton.onClick.AddListener((PlayerRun));
         _actionsUI.SetActive(false);
         _battleResultText.gameObject.SetActive(false);
     }
 
-    private void Start()
+    private void StartBattle(List<Unit> allies, List<Unit> enemies)
     {
-        //Debug
-        StartBattle();
-    }
+        _allies = allies;
+        _enemies = enemies;
 
-    private void StartBattle()
-    {
-        _currentEnemyHealth = 100;
+        /*_currentEnemyHealth = 100;
         _enemyHealthBar.fillAmount = _currentEnemyHealth / 100;
         _enemyHealthText.text = "血量： " + _currentEnemyHealth;
 
         _currentPlayerHealth = 100;
         _playerHealthBar.fillAmount = _currentPlayerHealth / 100;
-        _playerHealthText.text = "血量： " + _currentPlayerHealth;
+        _playerHealthText.text = "血量： " + _currentPlayerHealth;*/
 
         StartPlayerTurn();
     }
@@ -61,40 +76,53 @@ public class BattleManager : MonoBehaviour
         _actionsUI.SetActive(true);
     }
 
-    private IEnumerator PlayerAttack()
+    private void PlayerAttack()
     {
         _actionsUI.SetActive(false);
 
         int damage = Random.Range(minTestPlayerDamage, maxTestPlayerDamage);
         bool enemyDead = EnemyTakeDamage(damage);
+        OnAttackAction?.Invoke(damage, "玩家", "敌人");
 
-        if (enemyDead)
-            yield break;
-
-        yield return new WaitForSeconds(0.5f);
-
-        StartCoroutine(EnemyAttack());
+        if (!enemyDead)
+        {
+            StartCoroutine(WaitBeforeNextAction(_delayAfterEachAction, EnemyAttack));
+        }
+        else
+        {
+            ShowBattleResult(EBattleResult.Win);
+        }
     }
 
-    private IEnumerator EnemyAttack()
+    private void EnemyAttack()
     {
         int damage = Random.Range(minTestEnemyDamage, maxTestEnemyDamage);
         bool playerDead = PlayerTakeDamage(damage);
+        OnAttackAction?.Invoke(damage, "敌人", "玩家");
 
-        if (playerDead)
-            yield break;
-
-        yield return new WaitForSeconds(0.5f);
-
-        StartPlayerTurn();
+        if (!playerDead)
+        {
+            StartCoroutine(WaitBeforeNextAction(_delayAfterEachAction, StartPlayerTurn));
+        }
+        else
+        {
+            ShowBattleResult(EBattleResult.Lose);
+        }
     }
 
     private void PlayerRun()
     {
         _actionsUI.SetActive(false);
 
-        _battleResultText.text = "逃跑成功！";
-        _battleResultText.gameObject.SetActive(true);
+        if (Random.Range(0f, 1f) > testFleeSuccessChance)
+        {
+            ShowBattleResult(EBattleResult.Fled);
+        }
+        else
+        {
+            //battle continue
+            StartCoroutine(WaitBeforeNextAction(_delayAfterEachAction, EnemyAttack));
+        }
     }
 
     private bool EnemyTakeDamage(int amount)
@@ -102,12 +130,6 @@ public class BattleManager : MonoBehaviour
         _currentEnemyHealth -= amount;
         _enemyHealthBar.fillAmount = (float)_currentEnemyHealth / 100;
         _enemyHealthText.text = "血量： " + _currentEnemyHealth;
-
-        if (_currentEnemyHealth <= 0)
-        {
-            _battleResultText.text = "胜利！";
-            _battleResultText.gameObject.SetActive(true);
-        }
 
         return _currentEnemyHealth <= 0;
     }
@@ -118,11 +140,36 @@ public class BattleManager : MonoBehaviour
         _playerHealthBar.fillAmount = (float)_currentPlayerHealth / 100;
         _playerHealthText.text = "血量： " + _currentPlayerHealth;
 
-        if (_currentPlayerHealth <= 0)
-        {
-            _battleResultText.text = "你死了！";
-            _battleResultText.gameObject.SetActive(true);
-        }
         return _currentPlayerHealth <= 0;
+    }
+
+    private void ShowBattleResult(EBattleResult battleResult)
+    {
+        _actionsUI.SetActive(false);
+
+        switch (battleResult)
+        {
+            case EBattleResult.Win:
+                _battleResultText.text = "胜利！";
+                _battleResultText.gameObject.SetActive(true);
+                break;
+            case EBattleResult.Lose:
+                _battleResultText.text = "你死了！";
+                _battleResultText.gameObject.SetActive(true);
+                break;
+            case EBattleResult.Fled:
+                _battleResultText.text = "逃跑成功！";
+                _battleResultText.gameObject.SetActive(true);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private IEnumerator WaitBeforeNextAction(float delay, Action nextAction)
+    {
+        yield return new WaitForSeconds(delay);
+
+        nextAction?.Invoke();
     }
 }
