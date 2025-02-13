@@ -8,159 +8,105 @@ using UnityEngine;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
+public enum BattleState
+{
+    START = 0,
+    PLAYER_TURN = 1,
+    ENEMY_TURN = 2,
+    BATTLE_WON = 3,
+    BATTLE_LOST = 4,
+}
+
 public class BattleManagerNew : MonoBehaviour
 {
-    [Header("数值")]
-    [SerializeField] private int minTestPlayerDamage = 10;
-    [SerializeField] private int maxTestPlayerDamage = 25;
-    [SerializeField] private int minTestEnemyDamage = 10;
-    [SerializeField] private int maxTestEnemyDamage = 25;
-    [SerializeField] private float testFleeSuccessChance = 0.5f;
+    //[Header("TEST")]
+    [SerializeField] private List<UnitSlot> _allySlots;
+    [SerializeField] private List<UnitSlot> _enemySlots;
+    [SerializeField] private TMP_Text _battleText;
 
-    [Header("Settings")]
-    [SerializeField] private float _delayAfterEachAction = 1f;
+    public BattleState state { get; private set; }
 
-    [Header("Dependencies")]
-    [SerializeField] private Button _attackButton;
-    [SerializeField] private Button _runButton;
-    [SerializeField] private Image _playerHealthBar;
-    [SerializeField] private Image _enemyHealthBar;
-    [SerializeField] private TMP_Text _playerHealthText;
-    [SerializeField] private TMP_Text _enemyHealthText;
-    [SerializeField] private TMP_Text _battleResultText;
-    [SerializeField] private GameObject _actionsUI;
-
-    int _currentPlayerHealth = 0;
-    int _currentEnemyHealth = 0;
-
-    public event Action<int, string, string> OnAttackAction;
-
-    private void Awake()
-    {
-        _attackButton.onClick.AddListener(PlayerAttack);
-        _runButton.onClick.AddListener((PlayerRun));
-        _actionsUI.SetActive(false);
-        _battleResultText.gameObject.SetActive(false);
-    }
+    private List<Unit> _allies;
+    private List<Unit> _enemies;
 
     private void Start()
     {
-        //Debug
+#if UNITY_EDITOR
+        List<Unit> debugAllies = new List<Unit>();
+        List<Unit> debugEnemies = new List<Unit>();
+
+        for (int i = 0; i < _allySlots.Count; i++)
+        {
+            Unit debugUnit = _allySlots[i].GetComponentInChildren<Unit>();
+            if (debugUnit != null)
+            {
+                debugAllies.Add(debugUnit);
+                _allySlots[i].Initialize(debugUnit);
+            }
+            else
+                break;
+        }
+
+        for (int i = 0; i < _enemySlots.Count; i++)
+        {
+            Unit debugUnit = _enemySlots[i].GetComponentInChildren<Unit>();
+            if (debugUnit != null)
+            {
+                debugEnemies.Add(debugUnit);
+                _enemySlots[i].Initialize(debugUnit);
+            }
+            else
+                break;
+        }
+
+        _allies = debugAllies;
+        _enemies = debugEnemies;
+
         StartBattle();
+#endif
     }
 
-    private void StartBattle()
+    public void AssignUnits(List<Unit> allies, List<Unit> enemies)
     {
-        _currentEnemyHealth = 100;
-        _enemyHealthBar.fillAmount = _currentEnemyHealth / 100;
-        _enemyHealthText.text = "血量： " + _currentEnemyHealth;
+        _allies = allies;
+        _enemies = enemies;
 
-        _currentPlayerHealth = 100;
-        _playerHealthBar.fillAmount = _currentPlayerHealth / 100;
-        _playerHealthText.text = "血量： " + _currentPlayerHealth;
-
-        StartPlayerTurn();
-    }
-
-    private void StartPlayerTurn()
-    {
-        _actionsUI.SetActive(true);
-    }
-
-    private void PlayerAttack()
-    {
-        _actionsUI.SetActive(false);
-
-        int damage = Random.Range(minTestPlayerDamage, maxTestPlayerDamage);
-        bool enemyDead = EnemyTakeDamage(damage);
-        OnAttackAction?.Invoke(damage, "玩家", "敌人");
-
-        if (!enemyDead)
+        for (int i = 0; i < _allySlots.Count; i++)
         {
-            StartCoroutine(WaitBeforeNextAction(_delayAfterEachAction, EnemyAttack));
+            if (i < _allies.Count)
+            {
+                Instantiate(_allies[i], _allySlots[i].transform);
+                _allySlots[i].Initialize(_allies[i]);
+            }
+            else
+                _allySlots[i].gameObject.SetActive(false);
         }
-        else
+
+        for (int i = 0; i < _enemySlots.Count; i++)
         {
-            ShowBattleResult(EBattleResult.Win);
+            if (i < _enemies.Count)
+            {
+                Instantiate(_enemies[i], _enemySlots[i].transform);
+                _enemySlots[i].Initialize(_enemies[i]);
+            }
+            else
+                _enemySlots[i].gameObject.SetActive(false);
         }
+
     }
 
-    private void EnemyAttack()
+    public void StartBattle()
     {
-        int damage = Random.Range(minTestEnemyDamage, maxTestEnemyDamage);
-        bool playerDead = PlayerTakeDamage(damage);
-        OnAttackAction?.Invoke(damage, "敌人", "玩家");
-
-        if (!playerDead)
+        if (_allies == null || _enemies == null)
         {
-            StartCoroutine(WaitBeforeNextAction(_delayAfterEachAction, StartPlayerTurn));
+            Debug.LogError("Assign Units before starting battle!");
+            return;
         }
-        else
-        {
-            ShowBattleResult(EBattleResult.Lose);
-        }
+
+        state = BattleState.START;
+        _battleText.text = "战斗开始！";
+        
+
     }
 
-    private void PlayerRun()
-    {
-        _actionsUI.SetActive(false);
-
-        if (Random.Range(0f, 1f) > testFleeSuccessChance)
-        {
-            ShowBattleResult(EBattleResult.Fled);
-        }
-        else
-        {
-            //battle continue
-            StartCoroutine(WaitBeforeNextAction(_delayAfterEachAction, EnemyAttack));
-        }
-    }
-
-    private bool EnemyTakeDamage(int amount)
-    {
-        _currentEnemyHealth -= amount;
-        _enemyHealthBar.fillAmount = (float)_currentEnemyHealth / 100;
-        _enemyHealthText.text = "血量： " + _currentEnemyHealth;
-
-        return _currentEnemyHealth <= 0;
-    }
-
-    private bool PlayerTakeDamage(int amount)
-    {
-        _currentPlayerHealth -= amount;
-        _playerHealthBar.fillAmount = (float)_currentPlayerHealth / 100;
-        _playerHealthText.text = "血量： " + _currentPlayerHealth;
-
-        return _currentPlayerHealth <= 0;
-    }
-
-    private void ShowBattleResult(EBattleResult battleResult)
-    {
-        _actionsUI.SetActive(false);
-
-        switch (battleResult)
-        {
-            case EBattleResult.Win:
-                _battleResultText.text = "胜利！";
-                _battleResultText.gameObject.SetActive(true);
-                break;
-            case EBattleResult.Lose:
-                _battleResultText.text = "你死了！";
-                _battleResultText.gameObject.SetActive(true);
-                break;
-            case EBattleResult.Fled:
-                _battleResultText.text = "逃跑成功！";
-                _battleResultText.gameObject.SetActive(true);
-                break;
-            default:
-                break;
-        }
-    }
-
-    private IEnumerator WaitBeforeNextAction(float delay, Action nextAction)
-    {
-        yield return new WaitForSeconds(delay);
-
-        nextAction?.Invoke();
-    }
 }

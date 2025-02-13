@@ -42,9 +42,6 @@ public class BattleManager : MonoBehaviour
     int _currentPlayerHealth = 0;
     int _currentEnemyHealth = 0;
 
-    private List<Unit> _allies;
-    private List<Unit> _enemies;
-
     public event Action<int, string, string> OnAttackAction;
 
     private void Awake()
@@ -55,18 +52,20 @@ public class BattleManager : MonoBehaviour
         _battleResultText.gameObject.SetActive(false);
     }
 
-    private void StartBattle(List<Unit> allies, List<Unit> enemies)
+    private void Start()
     {
-        _allies = allies;
-        _enemies = enemies;
+        StartBattle();
+    }
 
-        /*_currentEnemyHealth = 100;
+    private void StartBattle()
+    {
+        _currentEnemyHealth = 100;
         _enemyHealthBar.fillAmount = _currentEnemyHealth / 100;
         _enemyHealthText.text = "血量： " + _currentEnemyHealth;
 
         _currentPlayerHealth = 100;
         _playerHealthBar.fillAmount = _currentPlayerHealth / 100;
-        _playerHealthText.text = "血量： " + _currentPlayerHealth;*/
+        _playerHealthText.text = "血量： " + _currentPlayerHealth;
 
         StartPlayerTurn();
     }
