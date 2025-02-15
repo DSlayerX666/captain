@@ -10,13 +10,14 @@ public class UnitSlot : MonoBehaviour
     [SerializeField] private Image _unitHealth;
     [SerializeField] private TMP_Text _unitHealthText;
 
-    private Unit _currentUnit = null;
+    public Unit CurrentUnit { get; private set; }
     public bool IsEmpty = true;
 
 
-    public void Initialize(Unit unit)
+    public void Initialize(Unit unit, EFaction faction)
     {
-        _currentUnit = unit;
+        CurrentUnit = unit;
+        CurrentUnit.faction = faction;
 
         _unitNameText.text = unit.name;
         _unitHealth.fillAmount = 1;
