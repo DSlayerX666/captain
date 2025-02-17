@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
 using Random = UnityEngine.Random;
+using DG.Tweening;
 
 public enum BattleState
 {
@@ -28,7 +29,8 @@ public class BattleManagerNew : MonoBehaviour
     [SerializeField] private List<UnitSlot> _enemySlots;
 
     [Space]
-    [SerializeField] private RectTransform _unitSlots;
+    [SerializeField] private RectTransform _allySlotsHolder;
+    [SerializeField] private RectTransform _enemySlotsHolder;
     [SerializeField] private RectTransform _actionsUI;
     [SerializeField] private TargetSelection _targetSelection;
     [SerializeField] private TMP_Text _battleText;
@@ -43,11 +45,19 @@ public class BattleManagerNew : MonoBehaviour
     private Queue<Unit> _actionTurns = new Queue<Unit>();
     private Unit _currentMovingUnit = null;
 
+    private CanvasGroup _actionsUICanvasGroup;
+    private Vector3 _actionsUIPosition;
     private bool _actionCompleted;
+
+    private void Awake()
+    {
+        _actionsUICanvasGroup = _actionsUI.GetComponent<CanvasGroup>();
+    }
 
     private void Start()
     {
-#if UNITY_EDITOR
+        _actionsUI.gameObject.SetActive(false);
+
         List<Unit> debugAllies = new List<Unit>();
         List<Unit> debugEnemies = new List<Unit>();
 
@@ -82,7 +92,6 @@ public class BattleManagerNew : MonoBehaviour
         _allUnits.AddRange(_enemies);
 
         StartBattle();
-#endif
     }
 
     public void AssignUnits(List<Unit> allies, List<Unit> enemies)
@@ -109,7 +118,6 @@ public class BattleManagerNew : MonoBehaviour
         }
 
     }
-
     private void OnEnable()
     {
         _attackButton.onClick.AddListener(OnAttackPressed);
@@ -125,7 +133,8 @@ public class BattleManagerNew : MonoBehaviour
 
         _battleState = BattleState.START;
         _battleText.text = "战斗开始！";
-        _actionsUI.gameObject.SetActive(false);
+        _actionsUIPosition = _actionsUI.anchoredPosition;
+        HideActionUI();
 
         StartCoroutine(DelayedCall(1f, GetNextTurn));
     }
@@ -152,18 +161,37 @@ public class BattleManagerNew : MonoBehaviour
         }
     }
 
+    public void ShowActionUI()
+    {
+        _actionsUI.gameObject.SetActive(true);
+        _actionsUICanvasGroup.interactable = true;
+        _actionsUI.DOAnchorPosX(0, 0.5f).SetEase(Ease.OutSine);
+        _actionsUICanvasGroup.DOFade(1f, 0.5f);
+    }
+
+    public void HideActionUI()
+    {
+        _actionsUICanvasGroup.interactable = false;
+        _actionsUI.DOAnchorPosX(200f, 0.5f).SetEase(Ease.OutSine);
+        _actionsUICanvasGroup.DOFade(0f, 0.5f).OnComplete(() => _actionsUI.gameObject.SetActive(false));
+    }
+
     private IEnumerator StartAllyTurn()
     {
         _battleState = BattleState.ALLY_TURN;
         _actionCompleted = false;
         _battleText.text = "选择行动：\n";
 
-        _actionsUI.gameObject.SetActive(true);
+        _currentMovingUnit.StartTurn();
+
+        ShowActionUI();
 
         while (!_actionCompleted)
         {
             yield return null;
         }
+
+        _currentMovingUnit.EndTurn();
 
         CheckBattleState();
     }
@@ -171,8 +199,11 @@ public class BattleManagerNew : MonoBehaviour
     private IEnumerator StartEnemyTurn()
     {
         _battleState = BattleState.ENEMY_TURN;
+        _currentMovingUnit.StartTurn();
 
         yield return WaitHandler.GetWaitForSeconds(1f);
+
+        _currentMovingUnit.EndTurn();
 
         CheckBattleState();
     }
@@ -205,13 +236,13 @@ public class BattleManagerNew : MonoBehaviour
 
     private void OnAttackPressed()
     {
-        _actionsUI.gameObject.SetActive(false);
+        HideActionUI();
         StartCoroutine(StartTargetSelection());
     }
 
     private IEnumerator StartTargetSelection()
     {
-        _targetSelection.StartTargetSelection(_enemies, _unitSlots);
+        _targetSelection.StartTargetSelection(_enemies, _enemySlotsHolder);
 
         while (_targetSelection.TargetSelectionResult == TargetSelectionResult.Running)
         {
@@ -225,17 +256,19 @@ public class BattleManagerNew : MonoBehaviour
         }
         else
         {
-            _actionsUI.gameObject.SetActive(true);
+            ShowActionUI();
         }
     }
 
     public void StartAttack(Unit target)
     {
+        _currentMovingUnit.Attack();
+
         target.TakeDamage(_currentMovingUnit.Stats[StatType.Attack] + Random.Range(1, 7) - target.Stats[StatType.Defense]);
         if (target.CurrentHealth <= 0)
         {
+            target.Die();
             _enemies.Remove(target);
-            Destroy(target.gameObject);
         }
     }
 

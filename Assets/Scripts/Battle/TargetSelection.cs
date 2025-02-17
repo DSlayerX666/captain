@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
+using static UnityEngine.GraphicsBuffer;
 
 public enum TargetSelectionResult
 {
@@ -24,7 +25,7 @@ public class TargetSelection : MonoBehaviour
     public event Action<Unit> OnTargetSelected;
     public event Action OnTargetSelectionCancelled;
 
-    public Unit SelectedTarget = null;
+    public Unit SelectedTarget { get; private set; }
 
     private void OnEnable()
     {
@@ -34,11 +35,6 @@ public class TargetSelection : MonoBehaviour
     private void OnDisable()
     {
         _cancelButton.onClick.RemoveListener(CancelTargetSelection);
-    }
-
-    private void Update()
-    {
-        
     }
 
     public void StartTargetSelection(List<Unit> availableTargets, Transform originalParent)
@@ -71,9 +67,12 @@ public class TargetSelection : MonoBehaviour
         SelectedTarget = selectedTarget;
         OnTargetSelected?.Invoke(SelectedTarget);
 
-        foreach (var availableTarget in _availableTargets)
+        foreach (var target in _availableTargets)
         {
-            availableTarget.transform.parent.SetParent(_originalParent);
+            target.transform.parent.SetParent(_originalParent);
+
+            target.SetSelectable(false);
+            target.OnUnitSelected.RemoveListener(SelectTarget);
         }
 
         this.gameObject.SetActive(false);
@@ -84,9 +83,12 @@ public class TargetSelection : MonoBehaviour
         TargetSelectionResult = TargetSelectionResult.Failed;
         OnTargetSelectionCancelled?.Invoke();
 
-        foreach (var availableTarget in _availableTargets)
+        foreach (var target in _availableTargets)
         {
-            availableTarget.transform.SetParent(_originalParent);
+            target.transform.parent.SetParent(_originalParent);
+
+            target.SetSelectable(false);
+            target.OnUnitSelected.RemoveListener(SelectTarget);
         }
 
         this.gameObject.SetActive(false);

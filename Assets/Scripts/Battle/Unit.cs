@@ -4,6 +4,7 @@ using UnityEngine;
 using System;
 using UnityEngine.UI;
 using UnityEngine.Events;
+using DG.Tweening;
 
 public enum StatType
 {
@@ -37,6 +38,10 @@ public enum EFaction
 public class Unit : MonoBehaviour
 {
     [SerializeField] private UnitSettings _unitSettings;
+    [SerializeField] private Material _flashMaterial;
+    [SerializeField] private AudioClip _attackSfx;
+    [SerializeField] private AudioClip _damageSfx;
+    [SerializeField] private AudioClip _deathSfx;
 
     public string Name { get; private set; }
     public int CurrentHealth { get; private set; }
@@ -55,10 +60,16 @@ public class Unit : MonoBehaviour
     }
     public EFaction faction { get; set; }
 
-    public Button button { get; private set; }
+    private Material _originalMaterial;
+    public RectTransform RectTransform { get; private set; }
+    public Button Button { get; private set; }
     public UnityEvent<Unit> OnUnitSelected;
 
+    public event Action OnHealthChanged;
     public event Action OnDeath;
+    public event Action OnTurnStart;
+    public event Action OnActionPerformed;
+    public event Action OnTurnEnd;
 
     private void Awake()
     {
@@ -75,13 +86,16 @@ public class Unit : MonoBehaviour
         name = _unitSettings.Name;
         CurrentHealth = Stats[StatType.Health];
 
-        button = GetComponent<Button>();
+        RectTransform = GetComponent<RectTransform>();
+        Button = GetComponent<Button>();
+        _originalMaterial = Button.image.material;
+
         SetSelectable(false);
     }
 
     private void OnEnable()
     {
-        button.onClick.AddListener(OnSelected);
+        Button.onClick.AddListener(OnSelected);
     }
 
     private void OnSelected()
@@ -91,11 +105,52 @@ public class Unit : MonoBehaviour
 
     public void SetSelectable(bool selectable)
     {
-        button.enabled = selectable;
+        Button.enabled = selectable;
+    }
+
+    public void StartTurn()
+    {
+        OnTurnStart?.Invoke();
+    }
+
+    public void Attack()
+    {
+        AudioManager.Instance.PlayGlobalSfx(_attackSfx, 1, 1, 0.1f);
+
+        OnActionPerformed?.Invoke();
+    }
+
+    public void EndTurn()
+    {
+        OnTurnEnd?.Invoke();
     }
 
     public void TakeDamage(int amount)
     {
         CurrentHealth -= amount;
+        OnHealthChanged?.Invoke();
+
+        if (_damageSfx != null)
+            AudioManager.Instance.PlayGlobalSfx(_damageSfx, 1, 1, 0.1f);
+
+        //Effect
+        RectTransform.DOShakeAnchorPos(0.5f, 20f, 100, 90, false, true);
+
+        if (_flashMaterial != null) 
+        {
+            Button.image.material = _flashMaterial;
+            DOVirtual.DelayedCall(0.1f, () => Button.image.material = _originalMaterial);
+        }
+    }
+
+    public void Die()
+    {
+        if (_deathSfx != null) 
+        {
+            AudioManager.Instance.PlayGlobalSfx(_deathSfx);
+        }
+
+        OnDeath?.Invoke();
+        Destroy(gameObject);
     }
 }
