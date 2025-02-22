@@ -67,7 +67,7 @@ public class BattleManagerNew : MonoBehaviour
                 _allySlots[i].Initialize(debugUnit, EFaction.Ally);
             }
             else
-                break;
+                continue;
         }
 
         for (int i = 0; i < _enemySlots.Count; i++)
@@ -79,7 +79,7 @@ public class BattleManagerNew : MonoBehaviour
                 _enemySlots[i].Initialize(debugUnit, EFaction.Enemy);
             }
             else
-                break;
+                continue;
         }
 
         _allies = debugAllies;
@@ -153,7 +153,7 @@ public class BattleManagerNew : MonoBehaviour
         _currentMovingUnit = _turnQueue[_currentTurnIndex];
         _currentBattleState = _currentMovingUnit.faction == EFaction.Ally ? BattleState.ALLY_TURN : BattleState.ENEMY_TURN;
 
-        if (_currentMovingUnit == null || _currentMovingUnit.CurrentHealth < 0)
+        if (_currentMovingUnit == null || _currentMovingUnit.CurrentHealth <= 0)
         {
             GetNextTurn();
             return;

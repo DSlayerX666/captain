@@ -14,7 +14,7 @@ public class UnitSlot : MonoBehaviour
     [SerializeField] private Image _graveyardIcon;
 
     public Unit CurrentUnit { get; private set; } = null;
-    public bool IsGraveyard = false;
+    public bool IsGraveyard { get; private set; } = false;
 
     private void Start()
     {
