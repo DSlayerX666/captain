@@ -11,8 +11,10 @@ public class UnitSlot : MonoBehaviour
     [SerializeField] private Image _unitHealth;
     [SerializeField] private TMP_Text _unitHealthText;
     [SerializeField] private GameObject _turnIndicator;
+    [SerializeField] private Image _graveyardIcon;
 
     public Unit CurrentUnit { get; private set; } = null;
+    public bool IsGraveyard = false;
 
     private void Start()
     {
@@ -70,8 +72,12 @@ public class UnitSlot : MonoBehaviour
         CurrentUnit.OnTurnEnd -= OnUnitPerformAction;
         CurrentUnit.OnDeath -= RemoveUnit;
 
-        gameObject.SetActive(false);
-
         CurrentUnit = null;
+
+        IsGraveyard = true;
+        _graveyardIcon.gameObject.SetActive(true);
+        _graveyardIcon.rectTransform.localScale = Vector3.zero;
+        _graveyardIcon.rectTransform.DOScale(Vector3.one, 0.5f).SetEase(Ease.OutBounce);
     }
+
 }

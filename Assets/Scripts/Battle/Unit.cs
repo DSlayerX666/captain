@@ -128,6 +128,8 @@ public class Unit : MonoBehaviour
     public void TakeDamage(int amount)
     {
         CurrentHealth -= amount;
+        CurrentHealth = Mathf.Clamp(CurrentHealth, 0, Stats[StatType.Health]);
+
         OnHealthChanged?.Invoke();
 
         if (_damageSfx != null)
@@ -151,6 +153,7 @@ public class Unit : MonoBehaviour
         }
 
         OnDeath?.Invoke();
-        Destroy(gameObject);
+        gameObject.SetActive(false);
+        //Destroy(gameObject);
     }
 }

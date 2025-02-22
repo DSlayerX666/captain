@@ -2,10 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Xml;
 using TMPro;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
@@ -36,17 +33,17 @@ public class BattleManagerNew : MonoBehaviour
     [SerializeField] private TMP_Text _battleText;
     [SerializeField] private Button _attackButton;
 
-    public BattleState _battleState { get; private set; }
+    public BattleState _currentBattleState { get; private set; }
 
     private List<Unit> _allUnits;
     private List<Unit> _allies;
     private List<Unit> _enemies;
 
-    private Queue<Unit> _actionTurns = new Queue<Unit>();
+    private List<Unit> _turnQueue = new List<Unit>();
+    private int _currentTurnIndex = -1;
     private Unit _currentMovingUnit = null;
 
     private CanvasGroup _actionsUICanvasGroup;
-    private Vector3 _actionsUIPosition;
     private bool _actionCompleted;
 
     private void Awake()
@@ -131,9 +128,8 @@ public class BattleManagerNew : MonoBehaviour
             return;
         }
 
-        _battleState = BattleState.START;
+        _currentBattleState = BattleState.START;
         _battleText.text = "战斗开始！";
-        _actionsUIPosition = _actionsUI.anchoredPosition;
         HideActionUI();
 
         StartCoroutine(DelayedCall(1f, GetNextTurn));
@@ -141,16 +137,28 @@ public class BattleManagerNew : MonoBehaviour
 
     private void GetNextTurn()
     {
-        if (_actionTurns.Count == 0) //Battle just started or all units already had their turn
+        if (_turnQueue.Count < 1 || _currentTurnIndex + 1 >= _turnQueue.Count)
         {
-            IEnumerable<Unit> actionOrder  = (_allUnits.OrderByDescending(unit => unit.Stats[StatType.Speed]));
-            foreach (Unit unit in actionOrder)
-                _actionTurns.Enqueue(unit);
+            //New round, refresh and queue all units by speed
+            _currentTurnIndex = 0;
+            IEnumerable<Unit> turnQueue = (_allUnits.OrderByDescending(unit => unit.Stats[StatType.Speed]));
+            foreach (Unit unit in turnQueue)
+                _turnQueue.Add(unit);
+        }
+        else
+        {
+            _currentTurnIndex++;
+        }
+
+        _currentMovingUnit = _turnQueue[_currentTurnIndex];
+        _currentBattleState = _currentMovingUnit.faction == EFaction.Ally ? BattleState.ALLY_TURN : BattleState.ENEMY_TURN;
+
+        if (_currentMovingUnit == null || _currentMovingUnit.CurrentHealth < 0)
+        {
+            GetNextTurn();
+            return;
         }
         
-        _currentMovingUnit = _actionTurns.Dequeue();
-        _battleState = _currentMovingUnit.faction == EFaction.Ally ? BattleState.ALLY_TURN : BattleState.ENEMY_TURN;
-
         if (_currentMovingUnit.faction == EFaction.Ally)
         {
             StartCoroutine(StartAllyTurn());
@@ -178,7 +186,7 @@ public class BattleManagerNew : MonoBehaviour
 
     private IEnumerator StartAllyTurn()
     {
-        _battleState = BattleState.ALLY_TURN;
+        _currentBattleState = BattleState.ALLY_TURN;
         _actionCompleted = false;
         _battleText.text = "选择行动：\n";
 
@@ -198,7 +206,7 @@ public class BattleManagerNew : MonoBehaviour
 
     private IEnumerator StartEnemyTurn()
     {
-        _battleState = BattleState.ENEMY_TURN;
+        _currentBattleState = BattleState.ENEMY_TURN;
         _currentMovingUnit.StartTurn();
 
         yield return WaitHandler.GetWaitForSeconds(1f);
@@ -220,14 +228,14 @@ public class BattleManagerNew : MonoBehaviour
 
     private IEnumerator BattleWon()
     {
-        _battleState = BattleState.BATTLE_WON;
+        _currentBattleState = BattleState.BATTLE_WON;
 
         yield return null;
     }
 
     private IEnumerator BattleLost()
     {
-        _battleState = BattleState.BATTLE_LOST;
+        _currentBattleState = BattleState.BATTLE_LOST;
 
         yield return null;
     }
