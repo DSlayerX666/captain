@@ -42,6 +42,9 @@ public class Unit : MonoBehaviour
     [SerializeField] private AudioClip _attackSfx;
     [SerializeField] private AudioClip _damageSfx;
     [SerializeField] private AudioClip _deathSfx;
+    [SerializeField] private SDice[] _attackDices;
+
+    public SDice[] AttackDices => _attackDices;
 
     public string Name { get; private set; }
     public int CurrentHealth { get; private set; }

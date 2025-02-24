@@ -13,33 +13,36 @@ public class DiceThrower : MonoBehaviour
     private CanvasGroup _canvasGroup;
     public CanvasGroup CanvasGroup => _canvasGroup ??= GetComponent<CanvasGroup>();
 
-    private bool _isRunning = false;
+    public bool IsRunning { get; private set; } = false;
     private bool _currentDiceFinished = false;
 
     private Dice[] _thrownDices;
 
+    public int Result { get; private set; }
+
     private void Update()
     {
-        if (_isRunning)
+        if (IsRunning)
             return;
 
         if (Input.GetKeyDown(KeyCode.D))
         {
-            _isRunning = true;
-            StartCoroutine(ThrowDices());
+            StartCoroutine(ThrowDices(_dicesToThrow));
         }
     }
 
-    public IEnumerator ThrowDices()
+    public IEnumerator ThrowDices(SDice[] dicesToThrow)
     {
+        IsRunning = true;
+
         CanvasGroup.DOFade(1, 0.25f);
 
-        _thrownDices = new Dice[_dicesToThrow.Length];
+        _thrownDices = new Dice[dicesToThrow.Length];
 
         for (int i = 0; i < _thrownDices.Length; i++)
         {
             _thrownDices[i] = Instantiate(_dicePrefab, _diceParentRectTransform);
-            _thrownDices[i].SetDiceSettings(_dicesToThrow[i]);
+            _thrownDices[i].SetDiceSettings(dicesToThrow[i]);
             _thrownDices[i].transform.localScale = Vector3.zero;
             _thrownDices[i].transform.DOScale(1f, 0.5f).SetEase(Ease.OutBounce);
             _thrownDices[i].StartRoll();
@@ -49,7 +52,11 @@ public class DiceThrower : MonoBehaviour
             }
         }
 
-        GetResult();
+        Result = 0;
+        for (int i = 0; i < _thrownDices.Length; i++)
+        {
+            Result += _thrownDices[i].DiceNumber;
+        }
 
         yield return WaitHandler.GetWaitForSeconds(1.5f);
 
@@ -72,20 +79,6 @@ public class DiceThrower : MonoBehaviour
         {
             Destroy(_thrownDices[i].gameObject);
         }
-        _isRunning = false;
-    }
-
-
-    public int GetResult()
-    {
-        int result = 0;
-
-        for (int i = 0; i < _thrownDices.Length; i++)
-        {
-            result += _thrownDices[i].DiceNumber;
-        }
-
-        Debug.LogWarning($"TOTAL: {result}");
-        return result;
+        IsRunning = false;
     }
 }

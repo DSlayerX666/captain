@@ -145,6 +145,9 @@ MonoBehaviour:
   _attackSfx: {fileID: 8300000, guid: 30db4d94dee14df40bce524453902145, type: 3}
   _damageSfx: {fileID: 8300000, guid: fd037078d9434a548a69aa2701791de2, type: 3}
   _deathSfx: {fileID: 0}
+  _attackDices:
+  - DiceImage: {fileID: 21300000, guid: 49f1e9f6359549e40a25f6da5dca32f7, type: 3}
+    MaxNumber: 6
   OnUnitSelected:
     m_PersistentCalls:
       m_Calls: []

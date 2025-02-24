@@ -30,6 +30,7 @@ public class BattleManagerNew : MonoBehaviour
     [SerializeField] private RectTransform _enemySlotsHolder;
     [SerializeField] private RectTransform _actionsUI;
     [SerializeField] private TargetSelection _targetSelection;
+    [SerializeField] private DiceThrower _diceThrower;
     [SerializeField] private TMP_Text _battleText;
     [SerializeField] private Button _attackButton;
 
@@ -259,8 +260,7 @@ public class BattleManagerNew : MonoBehaviour
 
         if (_targetSelection.TargetSelectionResult == TargetSelectionResult.Success)
         {
-            StartAttack(_targetSelection.SelectedTarget);
-            StartCoroutine(DelayedCall(1f, () => _actionCompleted = true));
+            StartCoroutine(StartAttack(_targetSelection.SelectedTarget));
         }
         else
         {
@@ -268,16 +268,28 @@ public class BattleManagerNew : MonoBehaviour
         }
     }
 
-    public void StartAttack(Unit target)
+    public IEnumerator StartAttack(Unit target)
     {
+        int diceResult = 0;
+
+        if (_currentMovingUnit.AttackDices != null && _currentMovingUnit.AttackDices.Length > 0)
+        {
+            StartCoroutine(_diceThrower.ThrowDices(_currentMovingUnit.AttackDices));
+            while (_diceThrower.IsRunning)
+                yield return null;
+            diceResult = _diceThrower.Result;
+        }
+
         _currentMovingUnit.Attack();
 
-        target.TakeDamage(_currentMovingUnit.Stats[StatType.Attack] + Random.Range(1, 7) - target.Stats[StatType.Defense]);
+        target.TakeDamage(_currentMovingUnit.Stats[StatType.Attack] + diceResult - target.Stats[StatType.Defense]);
         if (target.CurrentHealth <= 0)
         {
             target.Die();
             _enemies.Remove(target);
         }
+
+        StartCoroutine(DelayedCall(1f, () => _actionCompleted = true));
     }
 
     #endregion
