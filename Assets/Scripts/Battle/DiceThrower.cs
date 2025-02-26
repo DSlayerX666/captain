@@ -14,24 +14,28 @@ public class DiceThrower : MonoBehaviour
     public CanvasGroup CanvasGroup => _canvasGroup ??= GetComponent<CanvasGroup>();
 
     public bool IsRunning { get; private set; } = false;
-    private bool _currentDiceFinished = false;
 
     private Dice[] _thrownDices;
 
     public int Result { get; private set; }
 
-    private void Update()
+    /*private void Update()
     {
         if (IsRunning)
             return;
 
         if (Input.GetKeyDown(KeyCode.D))
         {
-            StartCoroutine(ThrowDices(_dicesToThrow));
+            StartCoroutine(ThrowDicesCO(_dicesToThrow));
         }
+    }*/
+
+    public void StartDiceThrow(SDice[] dicesToThrow)
+    {
+        StartCoroutine(ThrowDicesCO(dicesToThrow));
     }
 
-    public IEnumerator ThrowDices(SDice[] dicesToThrow)
+    private IEnumerator ThrowDicesCO(SDice[] dicesToThrow)
     {
         IsRunning = true;
 
@@ -67,7 +71,8 @@ public class DiceThrower : MonoBehaviour
     {
         for (int i = 0; i < _thrownDices.Length; i++)
         {
-            _thrownDices[i].RectTransform.DOAnchorPosY(_thrownDices[i].RectTransform.anchoredPosition.y + 50, 0.25f);
+            //_thrownDices[i].RectTransform.DOAnchorPosY(_thrownDices[i].RectTransform.anchoredPosition.y + 50, 0.25f);
+            _thrownDices[i].RectTransform.DOScale(1.5f, 0.25f);
         }
 
         CanvasGroup.DOFade(0, 0.25f).OnComplete(DestroyDices);

@@ -80,7 +80,7 @@ public class Dice : MonoBehaviour
         int newDiceNumber = DiceNumber;
         while (newDiceNumber == DiceNumber)
         {
-            DiceNumber = Random.Range(1, _diceSettings.MaxNumber);
+            DiceNumber = Random.Range(1, _diceSettings.MaxNumber + 1);
         }
 
         _diceText.text = DiceNumber.ToString();

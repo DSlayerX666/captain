@@ -223,8 +223,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 622f435b947e4f940b2405191582a9a0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _diceDelay: 0.02
-  _diceDelayMultiplier: 1.2
+  _diceDelay: 0.001
+  _diceDelayMultiplier: 1.15
   _diceStopThreshold: 0.15
   _diceText: {fileID: 6014963392063773903}
   _diceImage: {fileID: 1090875425143648525}

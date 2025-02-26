@@ -8,6 +8,7 @@ using UnityEngine.UI;
 using System.Linq;
 using Random = UnityEngine.Random;
 using DG.Tweening;
+using UnityEngine.Serialization;
 
 public enum BattleState
 {
@@ -28,10 +29,17 @@ public class BattleManagerNew : MonoBehaviour
     [Space]
     [SerializeField] private RectTransform _allySlotsHolder;
     [SerializeField] private RectTransform _enemySlotsHolder;
-    [SerializeField] private RectTransform _actionsUI;
-    [SerializeField] private TargetSelection _targetSelection;
-    [SerializeField] private DiceThrower _diceThrower;
-    [SerializeField] private TMP_Text _battleText;
+
+    [Header("Battle UIs")]
+    [SerializeField] private RectTransform _battleAreaUI;
+    [SerializeField] private BattleUI _idleUnitsArea;
+    [SerializeField] private ActionSequenceUI _movingUnitsArea;
+    [SerializeField] private BattleUI _blackBackground;
+    [SerializeField] private TargetSelection _targetSelectionUI;
+    [SerializeField] private RectTransform _actionsSelectUI;
+    [SerializeField] private BattleTextUI _battleTextUI;
+    [SerializeField] private DiceThrower _allyDiceThrower;
+    [SerializeField] private DiceThrower _enemyDiceThrower;
     [SerializeField] private Button _attackButton;
 
     public BattleState _currentBattleState { get; private set; }
@@ -44,17 +52,17 @@ public class BattleManagerNew : MonoBehaviour
     private int _currentTurnIndex = -1;
     private Unit _currentMovingUnit = null;
 
-    private CanvasGroup _actionsUICanvasGroup;
+    private CanvasGroup _actionsSelectUICanvasGroup;
     private bool _actionCompleted;
 
     private void Awake()
     {
-        _actionsUICanvasGroup = _actionsUI.GetComponent<CanvasGroup>();
+        _actionsSelectUICanvasGroup = _actionsSelectUI.GetComponent<CanvasGroup>();
     }
 
     private void Start()
     {
-        _actionsUI.gameObject.SetActive(false);
+        _actionsSelectUI.gameObject.SetActive(false);
 
         List<Unit> debugAllies = new List<Unit>();
         List<Unit> debugEnemies = new List<Unit>();
@@ -130,7 +138,7 @@ public class BattleManagerNew : MonoBehaviour
         }
 
         _currentBattleState = BattleState.START;
-        _battleText.text = "战斗开始！";
+        _battleTextUI.SetText("战斗开始！");
         HideActionUI();
 
         StartCoroutine(DelayedCall(1f, GetNextTurn));
@@ -172,24 +180,26 @@ public class BattleManagerNew : MonoBehaviour
 
     public void ShowActionUI()
     {
-        _actionsUI.gameObject.SetActive(true);
-        _actionsUICanvasGroup.interactable = true;
-        _actionsUI.DOAnchorPosX(0, 0.5f).SetEase(Ease.OutSine);
-        _actionsUICanvasGroup.DOFade(1f, 0.5f);
+        _actionsSelectUI.gameObject.SetActive(true);
+        _actionsSelectUICanvasGroup.interactable = true;
+        _actionsSelectUI.DOAnchorPosX(0, 0.5f).SetEase(Ease.OutSine);
+        _actionsSelectUICanvasGroup.DOFade(1f, 0.5f);
     }
 
     public void HideActionUI()
     {
-        _actionsUICanvasGroup.interactable = false;
-        _actionsUI.DOAnchorPosX(200f, 0.5f).SetEase(Ease.OutSine);
-        _actionsUICanvasGroup.DOFade(0f, 0.5f).OnComplete(() => _actionsUI.gameObject.SetActive(false));
+        _actionsSelectUICanvasGroup.interactable = false;
+        _actionsSelectUI.DOAnchorPosX(200f, 0.5f).SetEase(Ease.OutSine);
+        _actionsSelectUICanvasGroup.DOFade(0f, 0.5f).OnComplete(() => _actionsSelectUI.gameObject.SetActive(false));
     }
 
     private IEnumerator StartAllyTurn()
     {
+        _battleTextUI.FadeIn();
+
         _currentBattleState = BattleState.ALLY_TURN;
         _actionCompleted = false;
-        _battleText.text = "选择行动：\n";
+        _battleTextUI.SetText("选择行动：\n");
 
         _currentMovingUnit.StartTurn();
 
@@ -219,9 +229,9 @@ public class BattleManagerNew : MonoBehaviour
 
     private void CheckBattleState()
     {
-        if (_allies.Count == 0) //All allies defeated
+        if (_enemies.Count == 0) //All allies defeated
             StartCoroutine(BattleWon());
-        else if (_enemies.Count == 0) //All enemies defeated
+        else if (_allies.Count == 0) //All enemies defeated
             StartCoroutine(BattleLost());
         else
             GetNextTurn();
@@ -231,6 +241,9 @@ public class BattleManagerNew : MonoBehaviour
     {
         _currentBattleState = BattleState.BATTLE_WON;
 
+        _battleTextUI.FadeIn();
+        _battleTextUI.SetText("战斗胜利！");
+
         yield return null;
     }
 
@@ -238,11 +251,13 @@ public class BattleManagerNew : MonoBehaviour
     {
         _currentBattleState = BattleState.BATTLE_LOST;
 
+        _battleTextUI.FadeIn();
+        _battleTextUI.SetText("战斗失败...");
+
         yield return null;
     }
 
     #region Ally Actions
-
     private void OnAttackPressed()
     {
         HideActionUI();
@@ -251,45 +266,94 @@ public class BattleManagerNew : MonoBehaviour
 
     private IEnumerator StartTargetSelection()
     {
-        _targetSelection.StartTargetSelection(_enemies, _enemySlotsHolder);
+        _battleTextUI.SetText("选择攻击对象： ");
 
-        while (_targetSelection.TargetSelectionResult == TargetSelectionResult.Running)
+        _targetSelectionUI.StartTargetSelection(_enemies, _enemySlotsHolder);
+
+        while (_targetSelectionUI.TargetSelectionResult == TargetSelectionResult.Running)
         {
             yield return null;
         }
 
-        if (_targetSelection.TargetSelectionResult == TargetSelectionResult.Success)
+        if (_targetSelectionUI.TargetSelectionResult == TargetSelectionResult.Success)
         {
-            StartCoroutine(StartAttack(_targetSelection.SelectedTarget));
+            StartCoroutine(StartAttack(_targetSelectionUI.SelectedTarget));
         }
         else
         {
             ShowActionUI();
         }
+
+        _battleTextUI.SetText("选择行动：\n");
+
     }
 
     public IEnumerator StartAttack(Unit target)
     {
-        int diceResult = 0;
+        //_actionSequenceUI.FadeIn();
+        _battleTextUI.FadeOut();
+        _idleUnitsArea.FadeOut();
+        //_movingUnitsArea.FadeIn();
+        _blackBackground.FadeIn();
+
+        _battleAreaUI.DOScale(1.2f, 1f).SetEase(Ease.OutSine);
+
+        _currentMovingUnit.transform.parent.SetParent(_movingUnitsArea.AllySingleTargetSlot);
+        target.transform.parent.SetParent(_movingUnitsArea.EnemySingleTargetSlot);
+
+        RectTransform currentMovingUnitSlot = _currentMovingUnit.transform.parent.GetComponent<RectTransform>();
+        RectTransform targetSlot = target.transform.parent.GetComponent<RectTransform>();
+        Vector2 currentUnitOriginalPos = currentMovingUnitSlot.anchoredPosition;
+        Vector2 targetOriginalPos = targetSlot.anchoredPosition;
+
+        currentMovingUnitSlot.DOAnchorPos(Vector3.zero, 1f);
+        targetSlot.DOAnchorPos(Vector3.zero, 1f);
+
+        int allyDiceResult = 0;
+        int enemyDiceResult = 0;
 
         if (_currentMovingUnit.AttackDices != null && _currentMovingUnit.AttackDices.Length > 0)
         {
-            StartCoroutine(_diceThrower.ThrowDices(_currentMovingUnit.AttackDices));
-            while (_diceThrower.IsRunning)
+            _allyDiceThrower.StartDiceThrow(_currentMovingUnit.AttackDices);
+
+            if (target.AttackDices != null && target.AttackDices.Length > 0)
+            {
+                _enemyDiceThrower.StartDiceThrow(target.AttackDices);
+                while (_enemyDiceThrower.IsRunning)
+                    yield return null;
+                enemyDiceResult = _allyDiceThrower.Result;
+            }
+
+            while (_allyDiceThrower.IsRunning)
                 yield return null;
-            diceResult = _diceThrower.Result;
+            allyDiceResult = _allyDiceThrower.Result;
         }
 
         _currentMovingUnit.Attack();
 
-        target.TakeDamage(_currentMovingUnit.Stats[StatType.Attack] + diceResult - target.Stats[StatType.Defense]);
+        target.TakeDamage(_currentMovingUnit.Stats[StatType.Attack] + allyDiceResult - target.Stats[StatType.Defense]);
         if (target.CurrentHealth <= 0)
         {
             target.Die();
             _enemies.Remove(target);
         }
 
-        StartCoroutine(DelayedCall(1f, () => _actionCompleted = true));
+        _battleAreaUI.DOScale(1f, 1f).SetEase(Ease.OutSine).SetDelay(0.5f);
+        currentMovingUnitSlot.DOAnchorPos(currentUnitOriginalPos, 1f).SetDelay(0.5f);
+        targetSlot.DOAnchorPos(targetOriginalPos, 1f).SetDelay(0.5f);
+
+        yield return WaitHandler.GetWaitForSeconds(0.5f);
+
+        _idleUnitsArea.FadeIn();
+        _blackBackground.FadeOut();
+
+        yield return WaitHandler.GetWaitForSeconds(1f);
+
+        _currentMovingUnit.transform.parent.SetParent(_allySlotsHolder);
+        target.transform.parent.SetParent(_enemySlotsHolder);
+        //_movingUnitsArea.FadeOut(0f);
+
+        _actionCompleted = true;
     }
 
     #endregion
